@@ -1,7 +1,11 @@
 {
   "name": "send-eth-tokens",
   "version": "0.0.2",
+  "bin": "index.js",
   "description": "Send ethereum or tokens from/to multiple addresses",
+  "scripts": {
+    "pkg": "pkg --out-path bin ."
+  },
   "keywords": [
     "ethereum",
     "token",
@@ -18,5 +22,14 @@
     "ethereumjs-tx": "^1.3.6",
     "web3": "^1.0.0-beta.34",
     "yargs": "^12.0.1"
+  },
+  "pkg": {
+    "assets": "abis/**/*.json",
+    "targets": [
+      "node10"
+    ]
+  },
+  "devDependencies": {
+    "pkg": "^4.3.3"
   }
 }
