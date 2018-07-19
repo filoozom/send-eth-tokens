@@ -55,6 +55,13 @@ yargs
           default: 50,
           type: 'number'
         })
+        .option('dry-run', {
+          describe:
+            'Simulate which transactions will be created without sending them',
+          nargs: 0,
+          type: 'boolean',
+          default: false
+        })
         .check(argv => {
           if (!argv.keep && !argv.amount) {
             throw new Error('You must use either --keep or --amount')

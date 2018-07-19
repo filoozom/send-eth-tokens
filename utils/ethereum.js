@@ -48,8 +48,28 @@ class Ethereum {
     )
   }
 
-  toDecimals(token, amount) {
-    return parseFloat(amount) * 10 ** this.getTokenConfig(token).decimals
+  toDecimals(amount, { token, opposite }) {
+    amount = parseFloat(amount)
+
+    if (!token) {
+      const method = opposite ? 'fromWei' : 'toWei'
+      return this.web3.utils[method](amount, 'ether')
+    }
+
+    let decimals = this.getTokenConfig(token).decimals
+
+    if (opposite) {
+      decimals = -1 * decimals
+    }
+
+    return amount * 10 ** decimals
+  }
+
+  fromDecimals(amount, data) {
+    return this.toDecimals(amount, {
+      ...data,
+      opposite: true
+    })
   }
 
   sendSigned(rawTransaction, key) {
@@ -61,6 +81,23 @@ class Ethereum {
     return this.web3.eth.sendSignedTransaction('0x' + serializedTx)
   }
 
+  getGasPrice(price) {
+    return this.web3.utils.toHex(price * 1e9)
+  }
+
+  getEthereumBalance(address) {
+    return this.web3.eth.getBalance(address)
+  }
+
+  async getTokenBalance(contract, address) {
+    return parseFloat(await contract.methods.balanceOf(address).call())
+  }
+
+  async getNonce(from, addNonce = 0) {
+    const transactionCount = await this.web3.eth.getTransactionCount(from)
+    return this.web3.utils.toHex(transactionCount + addNonce)
+  }
+
   async sendTokens(data) {
     const tokenConfig = this.getTokenConfig(data.token)
 
@@ -69,9 +106,25 @@ class Ethereum {
     }
 
     const contract = this.getContract(data.token, data.from)
+
+    if (data.keep) {
+      const balance = await this.getTokenBalance(contract, data.from)
+      data.amount = balance - this.toDecimals(data.keep, { token: data.token })
+    }
+
+    if (data.amount <= 0) {
+      return
+    }
+
+    if (data.dryRun) {
+      return `Send ${this.fromDecimals(data.amount, {
+        token: data.token
+      })} ${data.token.toUpperCase()} tokens from ${data.from} to ${data.to}`
+    }
+
     const method = contract.methods.transfer(
       data.to,
-      this.toDecimals(data.token, data.amount)
+      this.toDecimals(data.amount, { token: data.token })
     )
     const rawTransaction = {
       from: data.from,
@@ -96,23 +149,32 @@ class Ethereum {
     })
   }
 
-  async getNonce(from, addNonce = 0) {
-    const transactionCount = await this.web3.eth.getTransactionCount(from)
-    return this.web3.utils.toHex(transactionCount + addNonce)
-  }
-
-  getGasPrice(price) {
-    return this.web3.utils.toHex(price * 1e9)
-  }
-
   async sendEthereum(data) {
+    const gasPrice = this.getGasPrice(data.gasPrice)
+    const gasLimit = 21000
+
+    if (data.keep) {
+      const balance = this.getEthereumBalance(data.from)
+      data.amount = balance - this.toDecimals(data.keep) - gasLimit * gasPrice
+    }
+
+    if (data.amount <= 0) {
+      return
+    }
+
+    if (data.dryRun) {
+      return `Send ${this.fromDecimals(data.amount)} ethereum from ${
+        data.from
+      } to ${data.to}`
+    }
+
     const rawTransaction = {
       from: data.from,
       nonce: await this.getNonce(data.from, data.addNonce),
-      gasPrice: this.getGasPrice(data.gasPrice),
-      gasLimit: 21000,
+      gasPrice,
+      gasLimit,
       to: data.to,
-      value: this.web3.utils.toHex(this.web3.utils.toWei(data.amount, 'ether')),
+      value: this.web3.utils.toHex(this.toDecimals(data.amount)),
       chainId: this.network.chainId
     }
 

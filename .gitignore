@@ -54,3 +54,6 @@ typings/
 
 # dotenv environment variables file
 .env
+
+# Data
+/data/addresses.csv

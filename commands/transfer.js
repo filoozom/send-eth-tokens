@@ -42,7 +42,7 @@ class TransferCommand {
       )
     }
 
-    const { amount, gas, token } = this.args
+    const { amount, gas, token, keep, dryRun } = this.args
     const promises = []
     let addNonce = 0
 
@@ -56,7 +56,9 @@ class TransferCommand {
             gasPrice: gas,
             amount,
             token,
-            addNonce
+            addNonce,
+            keep,
+            dryRun
           })
         )
         addNonce++
@@ -67,10 +69,6 @@ class TransferCommand {
   }
 
   async execute({ convert }) {
-    if (this.args.keep) {
-      throw new Error('keep was not implemented yet')
-    }
-
     if (this.args.from.startsWith('@') && this.args.to.startsWith('@')) {
       throw new Error(
         "You can't use a group for both the origin and destination addresses at the same time"
@@ -82,7 +80,7 @@ class TransferCommand {
 
     const transactions = await this.generateTransactions(from, to)
 
-    if (convert === 'etherscan') {
+    if (!this.args.dryRun && convert === 'etherscan') {
       return transactions.map(tx =>
         this.ethereum.network.etherscan.getTxUrl(tx)
       )
@@ -95,9 +93,9 @@ class TransferCommand {
 // Functions
 async function command(args) {
   try {
-    console.log(
-      await new TransferCommand(args).execute({ convert: 'etherscan' })
-    )
+    ;(await new TransferCommand(args).execute({
+      convert: 'etherscan'
+    })).forEach(tx => console.log(tx))
   } catch (err) {
     console.error(err)
   }
