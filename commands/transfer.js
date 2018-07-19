@@ -78,6 +78,10 @@ class TransferCommand {
     const from = await this.searchAddresses(this.args.from)
     const to = await this.searchAddresses(this.args.to)
 
+    if (this.args.keep && to.length > 1) {
+      throw new Error('--keep cannot be used with multiple destinations')
+    }
+
     const transactions = (await this.generateTransactions(from, to)).filter(
       tx => !!tx
     )
