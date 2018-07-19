@@ -40,7 +40,7 @@ yargs
           describe: 'Keep at least that amount of tokens',
           nargs: 1,
           conflicts: 'amount',
-          type: 'number'
+          type: 'string'
         })
         .option('network', {
           demandOption: true,

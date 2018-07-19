@@ -1,4 +1,5 @@
 // Dependencies
+const BigNumber = require('bignumber.js')
 const fs = require('fs')
 const path = require('path')
 const Tx = require('ethereumjs-tx')
@@ -48,21 +49,27 @@ class Ethereum {
     )
   }
 
-  toDecimals(amount, { token, opposite }) {
-    amount = parseFloat(amount)
+  toBigNumber(number) {
+    return new BigNumber(number)
+  }
+
+  toDecimals(amount, { token, opposite } = {}) {
+    amount = this.toBigNumber(amount)
 
     if (!token) {
       const method = opposite ? 'fromWei' : 'toWei'
-      return this.web3.utils[method](amount, 'ether')
+      return this.toBigNumber(
+        this.web3.utils[method](amount.toString(), 'ether')
+      )
     }
 
-    let decimals = this.getTokenConfig(token).decimals
+    let decimals = this.toBigNumber(this.getTokenConfig(token).decimals)
 
     if (opposite) {
-      decimals = -1 * decimals
+      decimals = decimals.multipliedBy(-1)
     }
 
-    return amount * 10 ** decimals
+    return amount.multipliedBy(this.toBigNumber(10).pow(decimals))
   }
 
   fromDecimals(amount, data) {
@@ -85,12 +92,12 @@ class Ethereum {
     return this.web3.utils.toHex(price * 1e9)
   }
 
-  getEthereumBalance(address) {
-    return this.web3.eth.getBalance(address)
+  async getEthereumBalance(address) {
+    return this.toBigNumber(await this.web3.eth.getBalance(address))
   }
 
   async getTokenBalance(contract, address) {
-    return parseFloat(await contract.methods.balanceOf(address).call())
+    return this.toBigNumber(await contract.methods.balanceOf(address).call())
   }
 
   async getNonce(from, addNonce = 0) {
@@ -109,7 +116,9 @@ class Ethereum {
 
     if (data.keep) {
       const balance = await this.getTokenBalance(contract, data.from)
-      data.amount = balance - this.toDecimals(data.keep, { token: data.token })
+      data.amount = balance.minus(
+        this.toDecimals(data.keep, { token: data.token })
+      )
     }
 
     if (data.amount <= 0) {
@@ -154,8 +163,10 @@ class Ethereum {
     const gasLimit = 21000
 
     if (data.keep) {
-      const balance = this.getEthereumBalance(data.from)
-      data.amount = balance - this.toDecimals(data.keep) - gasLimit * gasPrice
+      const balance = await this.getEthereumBalance(data.from)
+      data.amount = balance.minus(
+        this.toDecimals(data.keep).minus(gasLimit * gasPrice)
+      )
     }
 
     if (data.amount <= 0) {

@@ -78,7 +78,9 @@ class TransferCommand {
     const from = await this.searchAddresses(this.args.from)
     const to = await this.searchAddresses(this.args.to)
 
-    const transactions = await this.generateTransactions(from, to)
+    const transactions = (await this.generateTransactions(from, to)).filter(
+      tx => !!tx
+    )
 
     if (!this.args.dryRun && convert === 'etherscan') {
       return transactions.map(tx =>
