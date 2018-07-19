@@ -125,10 +125,14 @@ class Ethereum {
       return
     }
 
-    if (data.dryRun) {
-      return `Send ${this.fromDecimals(data.amount, {
+    const result = {
+      message: `Send ${this.fromDecimals(data.amount, {
         token: data.token
       })} ${data.token.toUpperCase()} tokens from ${data.from} to ${data.to}`
+    }
+
+    if (data.dryRun) {
+      return result
     }
 
     const method = contract.methods.transfer(
@@ -153,7 +157,12 @@ class Ethereum {
     return new Promise(resolve => {
       this.sendSigned(rawTransaction, data.privateKey).once(
         'transactionHash',
-        resolve
+        tx => {
+          resolve({
+            ...result,
+            tx
+          })
+        }
       )
     })
   }
@@ -173,10 +182,14 @@ class Ethereum {
       return
     }
 
-    if (data.dryRun) {
-      return `Send ${this.fromDecimals(data.amount)} ethereum from ${
+    const result = {
+      message: `Send ${this.fromDecimals(data.amount)} ethereum from ${
         data.from
       } to ${data.to}`
+    }
+
+    if (data.dryRun) {
+      return result
     }
 
     const rawTransaction = {
@@ -192,7 +205,12 @@ class Ethereum {
     return new Promise(resolve => {
       this.sendSigned(rawTransaction, data.privateKey).once(
         'transactionHash',
-        resolve
+        tx => {
+          resolve({
+            ...result,
+            tx
+          })
+        }
       )
     })
   }

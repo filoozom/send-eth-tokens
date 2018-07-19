@@ -83,9 +83,10 @@ class TransferCommand {
     )
 
     if (!this.args.dryRun && convert === 'etherscan') {
-      return transactions.map(tx =>
-        this.ethereum.network.etherscan.getTxUrl(tx)
-      )
+      return transactions.map(tx => ({
+        ...tx,
+        txUrl: this.ethereum.network.etherscan.getTxUrl(tx.tx)
+      }))
     }
 
     return transactions
@@ -97,7 +98,14 @@ async function command(args) {
   try {
     ;(await new TransferCommand(args).execute({
       convert: 'etherscan'
-    })).forEach(tx => console.log(tx))
+    })).forEach(tx => {
+      console.log(tx.message)
+
+      if (!args.dryRun) {
+        console.log(tx.txUrl)
+        console.log()
+      }
+    })
   } catch (err) {
     console.error(err)
   }
