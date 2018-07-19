@@ -3,6 +3,7 @@
   "version": "0.0.2",
   "bin": "index.js",
   "description": "Send ethereum or tokens from/to multiple addresses",
+  "private": true,
   "scripts": {
     "pkg": "pkg --out-path bin ."
   },
