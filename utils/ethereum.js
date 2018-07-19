@@ -80,7 +80,7 @@ class Ethereum {
   }
 
   sendSigned(rawTransaction, key) {
-    const privateKey = new Buffer(key, 'hex')
+    const privateKey = Buffer.from(key, 'hex')
     const transaction = new Tx(rawTransaction)
     transaction.sign(privateKey)
 
