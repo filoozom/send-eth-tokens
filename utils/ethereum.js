@@ -114,6 +114,10 @@ class Ethereum {
 
     const contract = this.getContract(data.token, data.from)
 
+    if (data.amount) {
+      data.amount = this.toDecimals(data.amount, { token: data.token })
+    }
+
     if (data.keep) {
       const balance = await this.getTokenBalance(contract, data.from)
       data.amount = balance.minus(
@@ -135,10 +139,7 @@ class Ethereum {
       return result
     }
 
-    const method = contract.methods.transfer(
-      data.to,
-      this.toDecimals(data.amount, { token: data.token })
-    )
+    const method = contract.methods.transfer(data.to, data.amount)
     const rawTransaction = {
       from: data.from,
       nonce: await this.getNonce(data.from, data.addNonce),
@@ -171,6 +172,10 @@ class Ethereum {
     const gasPrice = this.getGasPrice(data.gasPrice)
     const gasLimit = 21000
 
+    if (data.amount) {
+      data.amount = this.toDecimals(data.amount)
+    }
+
     if (data.keep) {
       const balance = await this.getEthereumBalance(data.from)
       data.amount = balance.minus(
@@ -198,7 +203,7 @@ class Ethereum {
       gasPrice,
       gasLimit,
       to: data.to,
-      value: this.web3.utils.toHex(this.toDecimals(data.amount)),
+      value: this.web3.utils.toHex(data.amount),
       chainId: this.network.chainId
     }
 
