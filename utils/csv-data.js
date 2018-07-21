@@ -11,7 +11,7 @@ async function getData() {
     return data
   }
 
-  const file = path.join(__dirname, '../data/addresses.csv')
+  const file = path.join(process.cwd(), '/data/addresses.csv')
   return (data = await csv({
     delimiter: 'auto'
   }).fromFile(file))
