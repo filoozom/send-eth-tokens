@@ -8,6 +8,7 @@ const Web3 = require('web3')
 // Utils
 const networks = require('./networks')
 const tokens = require('./tokens')
+const { decodeTokens } = require('./binary-decoder')
 
 // Class
 class Ethereum {
@@ -24,36 +25,71 @@ class Ethereum {
     )
   }
 
-  getTokenConfig(token) {
-    return tokens[this.network.name][token]
+  async getTokenConfig(token, key) {
+    const tokenConfig = (await this.getTokens())[token]
+    return key ? tokenConfig[key] : tokenConfig
   }
 
-  getAbi(token) {
+  getAbi(name) {
     return JSON.parse(
-      fs.readFileSync(
-        path.join(__dirname, `/../abis/${this.network.name}/${token}.json`),
-        {
-          encoding: 'utf8'
-        }
-      )
+      fs.readFileSync(path.resolve(__dirname, `../abis/${name}.json`), {
+        encoding: 'utf8'
+      })
     )
   }
 
-  getContract(token, from) {
+  // https://github.com/MyEtherWallet/utility-contracts/raw/master/build/contracts/PublicTokens.json
+  getPublicTokensContract() {
     return new this.web3.eth.Contract(
-      this.getAbi(token),
-      this.getTokenConfig(token).address,
+      this.getAbi('public-tokens'),
+      '0xBE1ecF8e340F13071761e0EeF054d9A511e1Cb56'
+    )
+  }
+
+  // https://github.com/ethereum/wiki/wiki/Contract-ERC20-ABI
+  async getTokenContract(token, from) {
+    return new this.web3.eth.Contract(
+      this.getAbi('erc20'),
+      await this.getTokenConfig(token, 'address'),
       {
         from
       }
     )
   }
 
+  async getTokens() {
+    if (this.network.name !== 'mainnet') {
+      return tokens[this.network.name]
+    }
+
+    if (this.tokens) {
+      return this.tokens
+    }
+
+    const contract = this.getPublicTokensContract()
+    const method = contract.methods.getAllBalance(
+      '0xBE1ecF8e340F13071761e0EeF054d9A511e1Cb56',
+      true,
+      false,
+      false,
+      0
+    )
+
+    const hex = await method.call()
+    const result = {}
+
+    decodeTokens(hex).forEach(token => {
+      result[token.symbol.toLowerCase()] = token
+    })
+
+    return (this.tokens = result)
+  }
+
   toBigNumber(number) {
     return new BigNumber(number)
   }
 
-  toDecimals(amount, { token, opposite } = {}) {
+  async toDecimals(amount, { token, opposite } = {}) {
     amount = this.toBigNumber(amount)
 
     if (!token) {
@@ -63,7 +99,9 @@ class Ethereum {
       )
     }
 
-    let decimals = this.toBigNumber(this.getTokenConfig(token).decimals)
+    let decimals = this.toBigNumber(
+      await this.getTokenConfig(token, 'decimals')
+    )
 
     if (opposite) {
       decimals = decimals.multipliedBy(-1)
@@ -72,8 +110,8 @@ class Ethereum {
     return amount.multipliedBy(this.toBigNumber(10).pow(decimals))
   }
 
-  fromDecimals(amount, data) {
-    return this.toDecimals(amount, {
+  async fromDecimals(amount, data) {
+    return await this.toDecimals(amount, {
       ...data,
       opposite: true
     })
@@ -106,22 +144,22 @@ class Ethereum {
   }
 
   async sendTokens(data) {
-    const tokenConfig = this.getTokenConfig(data.token)
+    const tokenConfig = await this.getTokenConfig(data.token)
 
     if (!tokenConfig) {
       throw new Error('Unknown token')
     }
 
-    const contract = this.getContract(data.token, data.from)
+    const contract = await this.getTokenContract(data.token, data.from)
 
     if (data.amount) {
-      data.amount = this.toDecimals(data.amount, { token: data.token })
+      data.amount = await this.toDecimals(data.amount, { token: data.token })
     }
 
     if (data.keep) {
       const balance = await this.getTokenBalance(contract, data.from)
       data.amount = balance.minus(
-        this.toDecimals(data.keep, { token: data.token })
+        await this.toDecimals(data.keep, { token: data.token })
       )
     }
 
@@ -130,7 +168,7 @@ class Ethereum {
     }
 
     const result = {
-      message: `Send ${this.fromDecimals(data.amount, {
+      message: `Send ${await this.fromDecimals(data.amount, {
         token: data.token
       })} ${data.token.toUpperCase()} tokens from ${data.from} to ${data.to}`
     }
@@ -173,13 +211,13 @@ class Ethereum {
     const gasLimit = 21000
 
     if (data.amount) {
-      data.amount = this.toDecimals(data.amount)
+      data.amount = await this.toDecimals(data.amount)
     }
 
     if (data.keep) {
       const balance = await this.getEthereumBalance(data.from)
       data.amount = balance.minus(
-        this.toDecimals(data.keep).minus(gasLimit * gasPrice)
+        await this.toDecimals(data.keep).minus(gasLimit * gasPrice)
       )
     }
 
@@ -188,7 +226,7 @@ class Ethereum {
     }
 
     const result = {
-      message: `Send ${this.fromDecimals(data.amount)} ethereum from ${
+      message: `Send ${await this.fromDecimals(data.amount)} ethereum from ${
         data.from
       } to ${data.to}`
     }

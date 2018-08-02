@@ -11,7 +11,8 @@ module.exports = {
   },
   mainnet: {
     name: 'mainnet',
-    provider: 'https://mainnet.infura.io/v3/a920c260dd3145c5a3770e182c3333d8',
+    provider: 'https://api.myetherwallet.com/eth',
+    // provider: 'https://mainnet.infura.io/v3/a920c260dd3145c5a3770e182c3333d8',
     chainId: 0x01,
     etherscan: {
       getTxUrl: tx => {

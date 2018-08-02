@@ -7,6 +7,7 @@ const networks = require('./utils/networks')
 const tokens = require('./utils/tokens')
 
 // Commands
+const listTokensCommand = require('./commands/list-tokens')
 const transferCommand = require('./commands/transfer')
 
 // Parse args
@@ -83,9 +84,7 @@ yargs
         choices: Object.keys(networks)
       })
     },
-    argv => {
-      Object.keys(tokens[argv.network]).forEach(token => console.log(token))
-    }
+    listTokensCommand
   )
   .help('h')
   .alias('h', 'help').argv
