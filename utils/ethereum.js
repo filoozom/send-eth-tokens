@@ -170,8 +170,19 @@ class Ethereum {
         throw new Error('No signing method given')
     }
 
-    const serializedTx = transaction.serialize().toString('hex')
-    return this.web3.eth.sendSignedTransaction('0x' + serializedTx)
+    const serializedTx = '0x' + transaction.serialize().toString('hex')
+    const method = this.web3.eth.sendSignedTransaction.method
+    const payload = method.toPayload([serializedTx])
+
+    return new Promise((resolve, reject) => {
+      method.requestManager.send(payload, (err, result) => {
+        if (err) {
+          reject(err)
+          return
+        }
+        resolve(result)
+      })
+    })
   }
 
   getGasPrice(price) {
@@ -243,15 +254,11 @@ class Ethereum {
 
     return new Promise(async (resolve, reject) => {
       try {
-        ;(await this.sendSigned(rawTransaction, data.sign)).once(
-          'transactionHash',
-          tx => {
-            resolve({
-              ...result,
-              tx
-            })
-          }
-        )
+        const tx = await this.sendSigned(rawTransaction, data.sign)
+        resolve({
+          ...result,
+          tx
+        })
       } catch (err) {
         reject(err)
       }
@@ -299,15 +306,11 @@ class Ethereum {
 
     return new Promise(async (resolve, reject) => {
       try {
-        ;(await this.sendSigned(rawTransaction, data.sign)).once(
-          'transactionHash',
-          tx => {
-            resolve({
-              ...result,
-              tx
-            })
-          }
-        )
+        const tx = await this.sendSigned(rawTransaction, data.sign)
+        resolve({
+          ...result,
+          tx
+        })
       } catch (err) {
         reject(err)
       }
