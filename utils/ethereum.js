@@ -146,14 +146,12 @@ class Ethereum {
     return this.ledger
   }
 
-  async sendSigned(rawTransaction, sign) {
-    const transaction = new Tx(rawTransaction)
-
+  async signTransaction(transaction, sign) {
     switch (sign.type) {
       case 'privateKey':
         const privateKey = Buffer.from(sign.privateKey, 'hex')
         transaction.sign(privateKey)
-        break
+        return transaction
 
       case 'ledger':
         const ledger = await this.getLedger()
@@ -164,12 +162,15 @@ class Ethereum {
         Object.keys(result).forEach(key => {
           transaction[key] = Buffer.from(result[key], 'hex')
         })
-        break
+        return transaction
 
       default:
         throw new Error('No signing method given')
     }
+  }
 
+  async sendSigned(rawTransaction, sign) {
+    const transaction = await this.signTransaction(new Tx(rawTransaction), sign)
     const serializedTx = '0x' + transaction.serialize().toString('hex')
     const method = this.web3.eth.sendSignedTransaction.method
     const payload = method.toPayload([serializedTx])
