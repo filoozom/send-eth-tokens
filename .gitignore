@@ -56,7 +56,8 @@ typings/
 .env
 
 # Data
-/data/addresses.csv
+/data
+!/data/addresses.csv.template
 
 # Build
 bin

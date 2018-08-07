@@ -5,6 +5,10 @@ const path = require('path')
 const Tx = require('ethereumjs-tx')
 const Web3 = require('web3')
 
+// Ledger
+const { default: Eth } = require('@ledgerhq/hw-app-eth')
+const { default: TransportNodeUid } = require('@ledgerhq/hw-transport-node-hid')
+
 // Utils
 const networks = require('./networks')
 const tokens = require('./tokens')
@@ -57,7 +61,16 @@ class Ethereum {
     )
   }
 
-  async getTokens() {
+  async getTokens(refresh = false) {
+    const tokensPath = path.join(process.cwd(), '/data/tokens.json')
+
+    if (!refresh) {
+      try {
+        const json = fs.readFileSync(tokensPath)
+        return (this.tokens = JSON.parse(json))
+      } catch (_) {}
+    }
+
     if (this.network.name !== 'mainnet') {
       return tokens[this.network.name]
     }
@@ -79,8 +92,15 @@ class Ethereum {
     const result = {}
 
     decodeTokens(hex).forEach(token => {
+      delete token.balance
       result[token.symbol.toLowerCase()] = token
     })
+
+    try {
+      fs.writeFileSync(tokensPath, JSON.stringify(result, null, 2))
+    } catch (err) {
+      console.error('Could not save tokens:', err)
+    }
 
     return (this.tokens = result)
   }
@@ -117,10 +137,38 @@ class Ethereum {
     })
   }
 
-  sendSigned(rawTransaction, key) {
-    const privateKey = Buffer.from(key, 'hex')
+  async getLedger() {
+    if (!this.ledger) {
+      const transport = await TransportNodeUid.create()
+      this.ledger = new Eth(transport)
+    }
+
+    return this.ledger
+  }
+
+  async sendSigned(rawTransaction, sign) {
     const transaction = new Tx(rawTransaction)
-    transaction.sign(privateKey)
+
+    switch (sign.type) {
+      case 'privateKey':
+        const privateKey = Buffer.from(sign.privateKey, 'hex')
+        transaction.sign(privateKey)
+        break
+
+      case 'ledger':
+        const ledger = await this.getLedger()
+        const result = await ledger.signTransaction(
+          "44'/60'",
+          transaction.serialize().toString('hex')
+        )
+        Object.keys(result).forEach(key => {
+          transaction[key] = Buffer.from(result[key], 'hex')
+        })
+        break
+
+      default:
+        throw new Error('No signing method given')
+    }
 
     const serializedTx = transaction.serialize().toString('hex')
     return this.web3.eth.sendSignedTransaction('0x' + serializedTx)
@@ -193,16 +241,20 @@ class Ethereum {
       chainId: this.network.chainId
     }
 
-    return new Promise(resolve => {
-      this.sendSigned(rawTransaction, data.privateKey).once(
-        'transactionHash',
-        tx => {
-          resolve({
-            ...result,
-            tx
-          })
-        }
-      )
+    return new Promise(async (resolve, reject) => {
+      try {
+        ;(await this.sendSigned(rawTransaction, data.sign)).once(
+          'transactionHash',
+          tx => {
+            resolve({
+              ...result,
+              tx
+            })
+          }
+        )
+      } catch (err) {
+        reject(err)
+      }
     })
   }
 
@@ -245,16 +297,20 @@ class Ethereum {
       chainId: this.network.chainId
     }
 
-    return new Promise(resolve => {
-      this.sendSigned(rawTransaction, data.privateKey).once(
-        'transactionHash',
-        tx => {
-          resolve({
-            ...result,
-            tx
-          })
-        }
-      )
+    return new Promise(async (resolve, reject) => {
+      try {
+        ;(await this.sendSigned(rawTransaction, data.sign)).once(
+          'transactionHash',
+          tx => {
+            resolve({
+              ...result,
+              tx
+            })
+          }
+        )
+      } catch (err) {
+        reject(err)
+      }
     })
   }
 
@@ -264,6 +320,13 @@ class Ethereum {
     }
 
     return this.sendEthereum(data)
+  }
+
+  close() {
+    if (this.engine) {
+      this.engine.stop()
+      this.engine = null
+    }
   }
 }
 

@@ -76,13 +76,20 @@ yargs
     'list-tokens',
     'List available tokens',
     yargs => {
-      yargs.option('network', {
-        demandOption: true,
-        alias: 'n',
-        nargs: 1,
-        describe: 'Network for which to list tokens',
-        choices: Object.keys(networks)
-      })
+      yargs
+        .option('network', {
+          demandOption: true,
+          alias: 'n',
+          nargs: 1,
+          describe: 'Network for which to list tokens',
+          choices: Object.keys(networks)
+        })
+        .option('refresh', {
+          alias: 'r',
+          type: 'boolean',
+          describe: 'Refresh locally cached tokens',
+          default: false
+        })
     },
     listTokensCommand
   )

@@ -44,28 +44,47 @@ class TransferCommand {
 
     const { amount, gas, token, keep, dryRun } = this.args
     const promises = []
+    const results = []
     let addNonce = 0
+    let ledgerSign = 0
 
     for (let from of fromArray) {
-      for (let to of toArray) {
-        promises.push(
-          this.ethereum.send({
-            privateKey: from.privateKey,
-            from: from.address,
-            to: to.address,
-            gasPrice: gas,
-            amount,
-            token,
-            addNonce,
-            keep,
-            dryRun
-          })
-        )
-        addNonce++
+      if (from.sign === 'ledger') {
+        ledgerSign++
       }
     }
 
-    return Promise.all(promises)
+    for (let from of fromArray) {
+      for (let to of toArray) {
+        const promise = this.ethereum.send({
+          sign: {
+            type: from.sign,
+            privateKey: from.privateKey
+          },
+          from: from.address,
+          to: to.address,
+          gasPrice: gas,
+          addNonce: addNonce++,
+          amount,
+          token,
+          keep,
+          dryRun
+        })
+
+        // Ledger signatures must be done sequentially
+        if (ledgerSign > 1 && from.sign === 'ledger') {
+          try {
+            results.push(await promise)
+          } catch (err) {
+            console.error(err)
+          }
+        } else {
+          promises.push(promise.catch(err => console.log(err)))
+        }
+      }
+    }
+
+    return results.concat(await Promise.all(promises))
   }
 
   async execute({ convert }) {
@@ -95,12 +114,18 @@ class TransferCommand {
 
     return transactions
   }
+
+  close() {
+    this.ethereum.close()
+  }
 }
 
 // Functions
 async function command(args) {
+  const command = new TransferCommand(args)
+
   try {
-    ;(await new TransferCommand(args).execute({
+    ;(await command.execute({
       convert: 'etherscan'
     })).forEach(tx => {
       console.log(tx.message)
@@ -113,6 +138,8 @@ async function command(args) {
   } catch (err) {
     console.error(err)
   }
+
+  command.close()
 }
 
 // Exports

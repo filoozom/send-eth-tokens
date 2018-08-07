@@ -12,9 +12,14 @@ async function getData() {
   }
 
   const file = path.join(process.cwd(), '/data/addresses.csv')
-  return (data = await csv({
+  const csvData = await csv({
     delimiter: 'auto'
-  }).fromFile(file))
+  }).fromFile(file)
+
+  return (data = csvData.map(line => ({
+    ...line,
+    sign: line.sign || (line.privateKey ? 'privateKey' : 'no')
+  })))
 }
 
 function matchSearch(search, name) {

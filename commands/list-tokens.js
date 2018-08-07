@@ -9,14 +9,20 @@ class ListTokensCommand {
   }
 
   async execute() {
-    return await this.ethereum.getTokens()
+    return await this.ethereum.getTokens(this.args.refresh)
+  }
+
+  close() {
+    this.ethereum.close()
   }
 }
 
 // Functions
 async function command(args) {
+  const command = new ListTokensCommand(args)
+
   try {
-    const tokens = await new ListTokensCommand(args).execute()
+    const tokens = await command.execute()
     console.log(`${Object.keys(tokens).length} tokens are supported:`)
     Object.keys(tokens)
       .sort()
@@ -27,6 +33,8 @@ async function command(args) {
   } catch (err) {
     console.error(err)
   }
+
+  command.close()
 }
 
 // Exports
