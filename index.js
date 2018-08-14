@@ -2,9 +2,7 @@
 const yargs = require('yargs')
 
 // Utils
-const Ethereum = require('./utils/ethereum')
 const networks = require('./utils/networks')
-const tokens = require('./utils/tokens')
 
 // Commands
 const listTokensCommand = require('./commands/list-tokens')
