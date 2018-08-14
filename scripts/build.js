@@ -5,6 +5,15 @@ const { exec } = require('child_process')
 
 // Data
 const regex = /The addon must be distributed with executable as %2\.(?:\r\n|\r|\n)\s*([^\r\n\s]*)(?:\r\n|\r|\n)\s*([^\r\n\s]*)/g
+const addons = [
+  'usb/src/binding/usb_bindings.node' // Ledger
+]
+
+// Functions
+function copyAddon(from, to) {
+  console.log(`Copying ${from} to ${to}`)
+  fs.copyFileSync(from, to)
+}
 
 // Script
 // Remove the build folder if it exists
@@ -20,14 +29,14 @@ const npm = exec('npm run pkg', (err, stdout) => {
   do {
     match = regex.exec(stdout)
     if (match) {
-      const destination = path.resolve(
-        __dirname,
-        '../bin/',
-        match[2].replace('path-to-executable/', '')
+      copyAddon(
+        match[1],
+        path.resolve(
+          __dirname,
+          '../bin/',
+          match[2].replace('path-to-executable/', '')
+        )
       )
-
-      console.log(`Moving ${match[1]} to ${destination}`)
-      fs.copyFileSync(match[1], destination)
     }
   } while (match)
 
@@ -37,6 +46,14 @@ const npm = exec('npm run pkg', (err, stdout) => {
     path.join(__dirname, '/../data/addresses.csv.template'),
     path.join(__dirname, '/../bin/data/addresses.csv')
   )
+
+  // Manually add some more modules not detected by zeit/pkg
+  for (let addon of addons) {
+    copyAddon(
+      path.join(__dirname, '/../node_modules/', addon),
+      path.join(__dirname, `/../bin/${path.parse(addon).base}`)
+    )
+  }
 })
 
 // Pipe stdout and stderr
