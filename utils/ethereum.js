@@ -313,9 +313,15 @@ class Ethereum {
   }
 
   async send(data) {
-    const { transactionData, message } = data.token
+    const txData = data.token
       ? await this.getTokensData(data)
       : await this.getEthereumData(data)
+
+    if (!txData) {
+      return
+    }
+
+    const { transactionData, message } = txData
 
     if (!transactionData) {
       return { message }
@@ -334,10 +340,7 @@ class Ethereum {
     return new Promise(async (resolve, reject) => {
       try {
         const tx = await this.sendSigned(rawTransaction, data.sign)
-        resolve({
-          ...result,
-          tx
-        })
+        resolve({ message, tx })
       } catch (err) {
         reject(err)
       }
