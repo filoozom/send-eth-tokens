@@ -62,6 +62,10 @@ class Ethereum {
   }
 
   async getTokens(refresh = false) {
+    if (this.network.name !== 'mainnet') {
+      return tokens[this.network.name]
+    }
+
     const tokensPath = path.join(process.cwd(), '/data/tokens.json')
 
     if (!refresh) {
@@ -69,10 +73,6 @@ class Ethereum {
         const json = fs.readFileSync(tokensPath)
         return (this.tokens = JSON.parse(json))
       } catch (_) {}
-    }
-
-    if (this.network.name !== 'mainnet') {
-      return tokens[this.network.name]
     }
 
     if (this.tokens) {
@@ -115,7 +115,7 @@ class Ethereum {
     if (!token) {
       const method = opposite ? 'fromWei' : 'toWei'
       return this.toBigNumber(
-        this.web3.utils[method](amount.toString(), 'ether')
+        this.web3.utils[method](amount.toString(10), 'ether')
       )
     }
 
@@ -187,7 +187,11 @@ class Ethereum {
   }
 
   getGasPrice(price) {
-    return this.web3.utils.toHex(price * 1e9)
+    return this.web3.utils.toHex(this.getGasPriceBigNumber(price))
+  }
+
+  getGasPriceBigNumber(price) {
+    return this.toBigNumber(price).times(1e9)
   }
 
   async getEthereumBalance(address) {
@@ -203,7 +207,7 @@ class Ethereum {
     return this.web3.utils.toHex(transactionCount + addNonce)
   }
 
-  async sendTokens(data) {
+  async getTokensData(data) {
     const tokenConfig = await this.getTokenConfig(data.token)
 
     if (!tokenConfig) {
@@ -227,47 +231,50 @@ class Ethereum {
       return
     }
 
-    const result = {
-      message: `Send ${await this.fromDecimals(data.amount, {
-        token: data.token
-      })} ${data.token.toUpperCase()} tokens from ${data.from} to ${data.to}`
+    // Current ethereum balance
+    const ethBalance = await this.getEthereumBalance(data.from)
+
+    // Calculate gas
+    const method = contract.methods.transfer(data.to, data.amount)
+    const gasLimit = this.web3.utils.toHex(
+      await method.estimateGas({
+        from: data.from
+      })
+    )
+    const totalGas = this.getGasPriceBigNumber(data.gasPrice).times(gasLimit)
+
+    // Create message
+    const innerMessage = `${await this.fromDecimals(data.amount, {
+      token: data.token
+    })} ${data.token.toUpperCase()} tokens from ${data.from} to ${data.to}`
+
+    // Check if there is enough ether to pay for gas
+    if (ethBalance.lt(totalGas)) {
+      return {
+        message: `Not enough ether to pay for gas to send ${innerMessage} (${await this.fromDecimals(
+          ethBalance
+        )} < ${await this.fromDecimals(totalGas)})`
+      }
     }
+
+    const message = `Send ${innerMessage}`
 
     if (data.dryRun) {
-      return result
+      return { message }
     }
 
-    const method = contract.methods.transfer(data.to, data.amount)
-    const rawTransaction = {
-      from: data.from,
-      nonce: await this.getNonce(data.from, data.addNonce),
-      gasPrice: this.getGasPrice(data.gasPrice),
-      gasLimit: this.web3.utils.toHex(
-        await method.estimateGas({
-          from: data.from
-        })
-      ),
-      to: tokenConfig.address,
-      value: '0x0',
-      data: method.encodeABI(),
-      chainId: this.network.chainId
+    return {
+      transactionData: {
+        gasLimit,
+        to: tokenConfig.address,
+        value: '0x0',
+        data: method.encodeABI()
+      },
+      message
     }
-
-    return new Promise(async (resolve, reject) => {
-      try {
-        const tx = await this.sendSigned(rawTransaction, data.sign)
-        resolve({
-          ...result,
-          tx
-        })
-      } catch (err) {
-        reject(err)
-      }
-    })
   }
 
-  async sendEthereum(data) {
-    const gasPrice = this.getGasPrice(data.gasPrice)
+  async getEthereumData(data) {
     const gasLimit = 21000
 
     if (data.amount) {
@@ -277,7 +284,9 @@ class Ethereum {
     if (data.keep) {
       const balance = await this.getEthereumBalance(data.from)
       data.amount = balance.minus(
-        await this.toDecimals(data.keep).minus(gasLimit * gasPrice)
+        await this.toDecimals(data.keep).minus(
+          gasLimit * this.getGasPriceBigNumber(data.gasPrice)
+        )
       )
     }
 
@@ -285,25 +294,42 @@ class Ethereum {
       return
     }
 
-    const result = {
-      message: `Send ${await this.fromDecimals(data.amount)} ethereum from ${
-        data.from
-      } to ${data.to}`
-    }
+    const message = `Send ${await this.fromDecimals(
+      data.amount
+    )} ethereum from ${data.from} to ${data.to}`
 
     if (data.dryRun) {
-      return result
+      return { message }
     }
 
-    const rawTransaction = {
-      from: data.from,
-      nonce: await this.getNonce(data.from, data.addNonce),
-      gasPrice,
-      gasLimit,
-      to: data.to,
-      value: this.web3.utils.toHex(data.amount),
-      chainId: this.network.chainId
+    return {
+      transactionData: {
+        gasLimit,
+        to: data.to,
+        value: this.web3.utils.toHex(data.amount)
+      },
+      message
     }
+  }
+
+  async send(data) {
+    const { transactionData, message } = data.token
+      ? await this.getTokensData(data)
+      : await this.getEthereumData(data)
+
+    if (!transactionData) {
+      return { message }
+    }
+
+    const rawTransaction = Object.assign(
+      {
+        from: data.from,
+        gasPrice: this.getGasPrice(data.gasPrice),
+        nonce: await this.getNonce(data.from, data.addNonce),
+        chainId: this.network.chainId
+      },
+      transactionData
+    )
 
     return new Promise(async (resolve, reject) => {
       try {
@@ -316,14 +342,6 @@ class Ethereum {
         reject(err)
       }
     })
-  }
-
-  async send(data) {
-    if (data.token) {
-      return this.sendTokens(data)
-    }
-
-    return this.sendEthereum(data)
   }
 
   close() {
