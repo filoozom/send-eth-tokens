@@ -64,12 +64,17 @@ class TransferCommand {
           from: from.address,
           to: to.address,
           gasPrice: gas,
-          addNonce: addNonce++,
+          addNonce,
           amount,
           token,
           keep,
           dryRun
         })
+
+        // Only increase the nonce if the transactions come from the same origin
+        if (fromArray.length === 1) {
+          addNonce++
+        }
 
         // Ledger signatures must be done sequentially
         if (ledgerSign > 1 && from.sign === 'ledger') {
