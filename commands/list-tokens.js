@@ -11,10 +11,6 @@ class ListTokensCommand {
   async execute() {
     return await this.ethereum.getTokens(this.args.refresh)
   }
-
-  close() {
-    this.ethereum.close()
-  }
 }
 
 // Functions
@@ -33,8 +29,6 @@ async function command(args) {
   } catch (err) {
     console.error(err)
   }
-
-  command.close()
 }
 
 // Exports

@@ -5,14 +5,11 @@ const path = require('path')
 const Tx = require('ethereumjs-tx')
 const Web3 = require('web3')
 
-// Ledger
-const { default: Eth } = require('@ledgerhq/hw-app-eth')
-const { default: TransportNodeUid } = require('@ledgerhq/hw-transport-node-hid')
-
 // Utils
 const networks = require('./networks')
 const tokens = require('./tokens')
 const { decodeTokens } = require('./binary-decoder')
+const Ledger = require('./ledger')
 
 // Class
 class Ethereum {
@@ -139,8 +136,8 @@ class Ethereum {
 
   async getLedger() {
     if (!this.ledger) {
-      const transport = await TransportNodeUid.create()
-      this.ledger = new Eth(transport)
+      this.ledger = new Ledger()
+      await this.ledger.start()
     }
 
     return this.ledger
@@ -155,14 +152,7 @@ class Ethereum {
 
       case 'ledger':
         const ledger = await this.getLedger()
-        const result = await ledger.signTransaction(
-          "44'/60'",
-          transaction.serialize().toString('hex')
-        )
-        Object.keys(result).forEach(key => {
-          transaction[key] = Buffer.from(result[key], 'hex')
-        })
-        return transaction
+        return await ledger.signTransaction(sign.from, transaction)
 
       default:
         throw new Error('No signing method given')
@@ -170,7 +160,10 @@ class Ethereum {
   }
 
   async sendSigned(rawTransaction, sign) {
-    const transaction = await this.signTransaction(new Tx(rawTransaction), sign)
+    const transaction = await this.signTransaction(new Tx(rawTransaction), {
+      ...sign,
+      from: rawTransaction.from
+    })
     const serializedTx = '0x' + transaction.serialize().toString('hex')
     const method = this.web3.eth.sendSignedTransaction.method
     const payload = method.toPayload([serializedTx])
@@ -345,13 +338,6 @@ class Ethereum {
         reject(err)
       }
     })
-  }
-
-  close() {
-    if (this.engine) {
-      this.engine.stop()
-      this.engine = null
-    }
   }
 }
 

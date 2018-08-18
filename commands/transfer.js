@@ -114,10 +114,6 @@ class TransferCommand {
 
     return transactions
   }
-
-  close() {
-    this.ethereum.close()
-  }
 }
 
 // Functions
@@ -138,8 +134,6 @@ async function command(args) {
   } catch (err) {
     console.error(err)
   }
-
-  command.close()
 }
 
 // Exports
