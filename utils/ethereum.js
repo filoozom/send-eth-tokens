@@ -20,10 +20,7 @@ class Ethereum {
       throw new Error('Unknown network')
     }
 
-    this.web3 = new Web3()
-    this.web3.setProvider(
-      new this.web3.providers.HttpProvider(this.network.provider)
-    )
+    this.web3 = new Web3(new Web3.providers.HttpProvider(this.network.provider))
   }
 
   async getTokenConfig(token, key) {

@@ -15,6 +15,14 @@ class Ledger {
     return this.ledger.getAddress(`${this.path}/${address}`)
   }
 
+  async getAddresses(limit) {
+    const addresses = []
+    for (let i = 0; i < limit; i++) {
+      addresses.push(await this.getAddress(i))
+    }
+    return addresses
+  }
+
   async findPath(address) {
     for (let i = 0; i < 50; i++) {
       const data = await this.getAddress(i)

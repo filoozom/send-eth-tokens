@@ -7,6 +7,7 @@ const networks = require('./utils/networks')
 // Commands
 const listTokensCommand = require('./commands/list-tokens')
 const transferCommand = require('./commands/transfer')
+const ledgerCommand = require('./commands/ledger')
 
 // Parse args
 yargs
@@ -90,6 +91,19 @@ yargs
         })
     },
     listTokensCommand
+  )
+  .command(
+    'ledger',
+    'List addresses from a Ledger device (takes some time)',
+    yargs => {
+      yargs.option('limit', {
+        alias: 'l',
+        nargs: 1,
+        describe: 'Number of addresses to print',
+        default: 50
+      })
+    },
+    ledgerCommand
   )
   .help('h')
   .alias('h', 'help').argv
