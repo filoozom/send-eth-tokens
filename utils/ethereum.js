@@ -45,12 +45,12 @@ class Ethereum {
   }
 
   // https://github.com/ethereum/wiki/wiki/Contract-ERC20-ABI
-  async getTokenContract(token, from) {
+  async getTokenContract(token, defaultAccount) {
     return new this.web3.eth.Contract(
       this.getAbi('erc20'),
       await this.getTokenConfig(token, 'address'),
       {
-        from
+        defaultAccount
       }
     )
   }
@@ -162,11 +162,9 @@ class Ethereum {
       from: rawTransaction.from
     })
     const serializedTx = '0x' + transaction.serialize().toString('hex')
-    const method = this.web3.eth.sendSignedTransaction.method
-    const payload = method.toPayload([serializedTx])
 
     return new Promise((resolve, reject) => {
-      method.requestManager.send(payload, (err, result) => {
+      this.web3.eth.sendSignedTransaction(serializedTx, (err, result) => {
         if (err) {
           reject(err)
           return
@@ -225,7 +223,8 @@ class Ethereum {
     const ethBalance = await this.getEthereumBalance(data.from)
 
     // Calculate gas
-    const method = contract.methods.transfer(data.to, data.amount)
+    // Cannot pass a BigNumber.js instance for now: https://github.com/ethereum/web3.js/issues/2077#issuecomment-482932690
+    const method = contract.methods.transfer(data.to, data.amount.toFixed())
     const gasLimit = this.web3.utils.toHex(
       await method.estimateGas({
         from: data.from

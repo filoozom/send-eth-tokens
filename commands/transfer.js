@@ -77,7 +77,7 @@ class TransferCommand {
         }
 
         // Ledger signatures must be done sequentially
-        if (ledgerSign > 1 && from.sign === 'ledger') {
+        if (ledgerSign > 0 && from.sign === 'ledger') {
           try {
             results.push(await promise)
           } catch (err) {
