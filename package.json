@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "build": "node ./scripts/build.js",
-    "pkg": "pkg --out-path bin ."
+    "pkg": "pkg --target host --out-path bin ."
   },
   "keywords": [
     "ethereum",

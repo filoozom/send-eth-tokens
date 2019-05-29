@@ -6,7 +6,7 @@ const { exec } = require('child_process')
 // Data
 const regex = /The addon must be distributed with executable as %2\.(?:\r\n|\r|\n)\s*([^\r\n\s]*)(?:\r\n|\r|\n)\s*([^\r\n\s]*)/g
 const addons = [
-  'usb/src/binding/usb_bindings.node' // Ledger
+  //'usb/build/Release/usb_bindings.node' // Ledger
 ]
 
 // Functions
