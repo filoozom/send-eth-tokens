@@ -8,6 +8,7 @@ const networks = require('./utils/networks')
 const listTokensCommand = require('./commands/list-tokens')
 const transferCommand = require('./commands/transfer')
 const ledgerCommand = require('./commands/ledger')
+const generateKeysCommand = require('./commands/generate-keys')
 
 // Parse args
 yargs
@@ -104,6 +105,19 @@ yargs
       })
     },
     ledgerCommand
+  )
+  .command(
+    'generate-keys',
+    'Generate ethereum acconts',
+    yargs => {
+      yargs.option('limit', {
+        alias: 'l',
+        nargs: 1,
+        describe: 'Number of addresses to print',
+        default: 10
+      })
+    },
+    generateKeysCommand
   )
   .help('h')
   .alias('h', 'help').argv
