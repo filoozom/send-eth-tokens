@@ -9,7 +9,6 @@ class GenerateKeysCommand {
   }
 
   *execute() {
-    const addresses = []
     for (let i = 0; i < this.args.limit; i++) {
       const { address, privateKey } = this.web3.eth.accounts.create()
       yield { address, privateKey }
