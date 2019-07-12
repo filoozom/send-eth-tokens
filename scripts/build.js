@@ -1,4 +1,5 @@
 // Dependencies
+const bindings = require('bindings')
 const fs = require('fs-extra')
 const path = require('path')
 const { exec } = require('child_process')
@@ -6,7 +7,9 @@ const { exec } = require('child_process')
 // Data
 const regex = /The addon must be distributed with executable as %2\.(?:\r\n|\r|\n)\s*([^\r\n\s]*)(?:\r\n|\r|\n)\s*([^\r\n\s]*)/g
 const addons = [
-  //'usb/build/Release/usb_bindings.node' // Ledger
+  // Ledger
+  { package: 'usb', file: 'usb_bindings.node' },
+  { package: 'node-hid', file: 'HID.node' }
 ]
 
 // Functions
@@ -48,11 +51,14 @@ const npm = exec('npm run pkg', (err, stdout) => {
   )
 
   // Manually add some more modules not detected by zeit/pkg
-  for (let addon of addons) {
-    copyAddon(
-      path.join(__dirname, '/../node_modules/', addon),
-      path.join(__dirname, `/../bin/${path.parse(addon).base}`)
-    )
+  for (let { package, file } of addons) {
+    const binding = bindings({
+      bindings: file,
+      module_root: path.join(__dirname, '../node_modules/', package),
+      path: true
+    })
+
+    copyAddon(binding, path.join(__dirname, `/../bin/${path.parse(file).base}`))
   }
 })
 
