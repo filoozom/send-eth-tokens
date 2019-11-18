@@ -9,6 +9,7 @@ const listTokensCommand = require('./commands/list-tokens')
 const transferCommand = require('./commands/transfer')
 const ledgerCommand = require('./commands/ledger')
 const generateKeysCommand = require('./commands/generate-keys')
+const listBalancesCommand = require('./commands/list-balances')
 
 // Parse args
 yargs
@@ -79,10 +80,10 @@ yargs
       yargs
         .option('network', {
           demandOption: true,
-          alias: 'n',
+          describe: 'Change the network on which to send the transactions',
           nargs: 1,
-          describe: 'Network for which to list tokens',
-          choices: Object.keys(networks)
+          choices: Object.keys(networks),
+          default: 'mainnet'
         })
         .option('refresh', {
           alias: 'r',
@@ -118,6 +119,29 @@ yargs
       })
     },
     generateKeysCommand
+  )
+  .command(
+    'list-balances',
+    'List balances',
+    yargs => {
+      yargs
+        .option('network', {
+          demandOption: true,
+          describe: 'Change the network on which to send the transactions',
+          nargs: 1,
+          choices: Object.keys(networks),
+          default: 'mainnet'
+        })
+        .option('token', {
+          describe: 'Send tokens instead of ethereum',
+          nargs: 1
+        })
+        .option('filter', {
+          describe: 'Filter address(es)',
+          nargs: 1
+        })
+    },
+    listBalancesCommand
   )
   .help('h')
   .alias('h', 'help').argv
