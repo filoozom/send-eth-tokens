@@ -1,4 +1,5 @@
 // Dependencies
+const axios = require('axios')
 const BigNumber = require('bignumber.js')
 const fs = require('fs')
 const path = require('path')
@@ -8,7 +9,6 @@ const Web3 = require('web3')
 // Utils
 const networks = require('./networks')
 const tokens = require('./tokens')
-const { decodeTokens } = require('./binary-decoder')
 const Ledger = require('./ledger')
 
 // Class
@@ -33,14 +33,6 @@ class Ethereum {
       fs.readFileSync(path.resolve(__dirname, `../abis/${name}.json`), {
         encoding: 'utf8'
       })
-    )
-  }
-
-  // https://github.com/MyEtherWallet/utility-contracts/raw/master/build/contracts/PublicTokens.json
-  getPublicTokensContract() {
-    return new this.web3.eth.Contract(
-      this.getAbi('public-tokens'),
-      '0xBE1ecF8e340F13071761e0EeF054d9A511e1Cb56'
     )
   }
 
@@ -73,27 +65,25 @@ class Ethereum {
       return this.tokens
     }
 
-    const contract = this.getPublicTokensContract()
-    const method = contract.methods.getAllBalance(
-      '0xBE1ecF8e340F13071761e0EeF054d9A511e1Cb56',
-      true,
-      false,
-      false,
-      0
-    )
-
-    const hex = await method.call()
-    const result = {}
-
-    decodeTokens(hex).forEach(token => {
-      delete token.balance
-      result[token.symbol.toLowerCase()] = token
-    })
+    let result
+    try {
+      const { data } = await axios(
+        'https://raw.githubusercontent.com/MyEtherWallet/ethereum-lists/master/dist/tokens/eth/tokens-eth.min.json'
+      )
+      result = data.reduce((tokens, token) => {
+        tokens[token.symbol.toLowerCase()] = token
+        return tokens
+      }, {})
+    } catch (err) {
+      console.error('Could not fetch tokens:', err)
+      return
+    }
 
     try {
       fs.writeFileSync(tokensPath, JSON.stringify(result, null, 2))
     } catch (err) {
       console.error('Could not save tokens:', err)
+      return
     }
 
     return (this.tokens = result)
